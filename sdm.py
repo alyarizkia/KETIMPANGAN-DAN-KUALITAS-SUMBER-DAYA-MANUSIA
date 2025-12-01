@@ -13,22 +13,31 @@ st.set_page_config(page_title="KELOMPOK 5", layout="wide")
 st.title("KETIMPANGAN & KUALITAS SUMBER DAYA MANUSIA")
 
 # === TAB ===
-tab_capaian, tab_ipm, tab_sosial,tab_lingkungan_geospasial, tab_infrastruktur = st.tabs([
+tab_capaian, tab_ipm, tab_sosial,tab_lingkungan_geospasial, tab_infrastruktur, tab_airpangan, tab_gizi = st.tabs([
                                                                                         "Capaian Pendidikan", 
                                                                                         "IPM & Akses Pendidikan", 
                                                                                         "Sosial Ekonomi Rumah Tangga",
                                                                                         "Lingkungan dan GeoSpacial",
-                                                                                        "Infrastruktur"
+                                                                                        "Infrastruktur",
+                                                                                        "Kerawanan Pangan dan Air Minum Layak",
+                                                                                        "Konsumsi Gizi"
                                                                                         ])
 
 with tab_capaian:
-
     st.header("Tren Capaian Pendidikan 5 Tahun Terakhir")
 
     st.write("""
     Analisis ini menampilkan perkembangan penyelesaian pendidikan jenjang **SD, SMP, dan SMA** 
     selama lima tahun terakhir, baik di tingkat **nasional** maupun **provinsi**.
     """)
+
+    # --- Tambahkan total jenjang untuk setiap tahun 2020–2024 ---
+    for tahun in range(2020, 2025):
+        df[f"penyelesaian_pendidikanTotal{tahun}"] = (
+            df[f"penyelesaian_pendidikanSD{tahun}"] +
+            df[f"penyelesaian_pendidikanSMP{tahun}"] +
+            df[f"penyelesaian_pendidikanSMA{tahun}"]
+        )
 
     # DEFINISI KOLOM PENYELESAIAN PENDIDIKAN 2020–2024
     pend_cols = {
@@ -48,16 +57,23 @@ with tab_capaian:
     with st.expander("Tekan untuk melakukan analisis"):
         selected_jenjang_nasional = st.selectbox(
             "Pilih Jenjang Nasional:",
-            ["SD", "SMP", "SMA"],
+            ["SD", "SMP", "SMA", "Seluruh Jenjang"],
             key="jenjang_nasional"
         )
 
         df_nas = df[df["provinsi"].str.lower() == "indonesia"].copy()
 
-        df_nasional_long = pd.DataFrame({
-            "tahun": list(range(2020, 2025)),
-            "nilai": [df_nas[col].values[0] for col in pend_cols[selected_jenjang_nasional]]
-        })
+        if selected_jenjang_nasional == "Seluruh Jenjang":
+            cols_total = [f"penyelesaian_pendidikanTotal{tahun}" for tahun in range(2020, 2025)]
+            df_nasional_long = pd.DataFrame({
+                "tahun": list(range(2020, 2025)),
+                "nilai": [df_nas[col].values[0] for col in cols_total]
+            })
+        else:
+            df_nasional_long = pd.DataFrame({
+                "tahun": list(range(2020, 2025)),
+                "nilai": [df_nas[col].values[0] for col in pend_cols[selected_jenjang_nasional]]
+            })
 
         fig_nasional = px.line(
             df_nasional_long,
@@ -77,6 +93,15 @@ with tab_capaian:
 
     # TREND PER PROVINSI 
     st.subheader("Tren Berdasarkan Provinsi")
+
+    # --- Tambahkan total jenjang untuk setiap tahun 2020–2024 ---
+    for tahun in range(2020, 2025):
+        df[f"penyelesaian_pendidikanTotal{tahun}"] = (
+            df[f"penyelesaian_pendidikanSD{tahun}"] +
+            df[f"penyelesaian_pendidikanSMP{tahun}"] +
+            df[f"penyelesaian_pendidikanSMA{tahun}"]
+        )
+
     with st.expander("Tekan untuk melakukan analisis"):
         col1, col2 = st.columns(2)
 
@@ -90,16 +115,23 @@ with tab_capaian:
         with col2:
             selected_jenjang_prov = st.selectbox(
                 "Pilih Jenjang Provinsi:",
-                ["SD", "SMP", "SMA"],
+                ["SD", "SMP", "SMA", "Seluruh Jenjang"],
                 key="jenjang_prov"
             )
 
         df_prov = df[df["provinsi"] == selected_prov].copy()
 
-        df_prov_long = pd.DataFrame({
-            "tahun": list(range(2020, 2025)),
-            "nilai": [df_prov[col].values[0] for col in pend_cols[selected_jenjang_prov]]
-        })
+        if selected_jenjang_prov == "Seluruh Jenjang":
+            cols_total = [f"penyelesaian_pendidikanTotal{tahun}" for tahun in range(2020, 2025)]
+            df_prov_long = pd.DataFrame({
+                "tahun": list(range(2020, 2025)),
+                "nilai": [df_prov[col].values[0] for col in cols_total]
+            })
+        else:
+            df_prov_long = pd.DataFrame({
+                "tahun": list(range(2020, 2025)),
+                "nilai": [df_prov[col].values[0] for col in pend_cols[selected_jenjang_prov]]
+            })
 
         fig_prov = px.line(
             df_prov_long,
@@ -117,8 +149,70 @@ with tab_capaian:
 
         st.plotly_chart(fig_prov, use_container_width=True)
 
+    # === BARCHART PER PROVINSI: PILIH JENJANG & TAHUN ===
+    st.subheader("Perbandingan Penyelesaian Pendidikan Antar Provinsi")
+
+    with st.expander("Tekan untuk menampilkan bar chart per provinsi"):
+
+        # Dropdown jenjang
+        selected_jenjang = st.selectbox(
+            "Pilih Jenjang Pendidikan:",
+            ["SD", "SMP", "SMA"],
+            key="jenjang_barchart"
+        )
+
+        # Dropdown tahun
+        selected_tahun = st.selectbox(
+            "Pilih Tahun:",
+            [2020, 2021, 2022, 2023, 2024],
+            key="tahun_barchart"
+        )
+
+        # Ambil nama kolom berdasarkan jenjang + tahun
+        col_map = {
+            "SD":  f"penyelesaian_pendidikanSD{selected_tahun}",
+            "SMP": f"penyelesaian_pendidikanSMP{selected_tahun}",
+            "SMA": f"penyelesaian_pendidikanSMA{selected_tahun}",
+        }
+
+        selected_col = col_map[selected_jenjang]
+
+        # Filter hanya provinsi (hilangkan Indonesia)
+        df_plot = df[df["provinsi"].str.lower() != "indonesia"].copy()
+
+        # Pastikan kolom numerik
+        df_plot[selected_col] = pd.to_numeric(df_plot[selected_col], errors="coerce")
+
+        # Siapkan dataframe untuk plot
+        df_bar = pd.DataFrame({
+            "provinsi": df_plot["provinsi"],
+            "nilai": df_plot[selected_col]
+        })
+
+        # Plot Bar Chart
+        fig_bar = px.bar(
+            df_bar,
+            x="provinsi",
+            y="nilai",
+            color="provinsi",
+            title=f"Penyelesaian Pendidikan {selected_jenjang} Tahun {selected_tahun}",
+            labels={"nilai": "Persentase (%)", "provinsi": "Provinsi"}
+        )
+
+        fig_bar.update_layout(
+            xaxis_tickangle=45,
+            height=550,
+            showlegend=False  
+        )
+
+        st.plotly_chart(fig_bar, use_container_width=True)
+
 with tab_ipm:
     # === IPM VS APS ===
+
+    # === Buat kolom APS Total ===
+    df["aps_total"] = df[["aps_7_12", "aps_13_15", "aps_16_18", "aps_19_23"]].sum(axis=1)
+
     df_aps = df[df["provinsi"] != "Indonesia"][[
                 "provinsi", 
                 "ipm_2024", 
@@ -139,7 +233,8 @@ with tab_ipm:
             "APS Usia 7–12 (SD)": "aps_7_12",
             "APS Usia 13–15 (SMP)": "aps_13_15",
             "APS Usia 16–18 (SMA)": "aps_16_18",
-            "APS Usia 19–23 (PT)": "aps_19_23"
+            "APS Usia 19–23 (PT)": "aps_19_23",
+            "APS Total": "aps_total"
         }
 
         selected_label = st.selectbox(
@@ -193,14 +288,26 @@ with tab_ipm:
                     fig_g.update_layout(height=350)
                     st.plotly_chart(fig_g, use_container_width=True, key=f"grid_aps_{colname}")
 
+    # --- Interpretasi ---
+        st.info(
+            "💡 *Interpretasi:* Pola titik yang naik dari kiri ke kanan menunjukkan bahwa "
+            "provinsi dengan IPM lebih tinggi umumnya memiliki APS lebih tinggi pada semua kelompok usia. "
+            "Jika titik cenderung horizontal atau turun di IPM rendah, hal ini menandakan akses pendidikan yang terbatas."
+        )
+
     # === IPM VS PUTUS SEKOLAH ===
+
+    # === Buat kolom angka putus sekolah Total ===
+    df["putus_total"] = df[["putus_sd", "putus_smp", "putus_sma", "putus_smk"]].sum(axis=1)
+
     df_putus = df[df["provinsi"] != "Indonesia"][[
                     "provinsi", 
                     "ipm_2024", 
                     "putus_sd", 
                     "putus_smp", 
                     "putus_sma", 
-                    "putus_smk"]]
+                    "putus_smk",
+                    "putus_total"]]
 
     st.header("IPM vs Angka Putus Sekolah")
 
@@ -214,7 +321,8 @@ with tab_ipm:
             "Putus SD": "putus_sd",
             "Putus SMP": "putus_smp",
             "Putus SMA": "putus_sma",
-            "Putus SMK": "putus_smk"
+            "Putus SMK": "putus_smk",
+            "Putus Total": "putus_total"
         }
 
         selected_putus_label = st.selectbox(
@@ -260,15 +368,17 @@ with tab_ipm:
                     fig_g = plot_ipm_vs_putus(df_putus, colname, label)
                     st.plotly_chart(fig_g, use_container_width=True, key=f"grid_putus_{colname}")
 
+        st.info(
+            "💡 *Interpretasi:* jika titik-titik cenderung naik ke atas saat IPM menurun, "
+            "artinya provinsi dengan IPM lebih rendah kemungkinan memiliki angka putus sekolah lebih tinggi. "
+            "Sebaliknya, jika titik-titik cenderung tetap rendah saat IPM meningkat, "
+            "provinsi dengan IPM lebih tinggi kemungkinan mampu mempertahankan murid di sekolah lebih baik."
+        )
+
         # --- Statistik ---
         st.markdown("### Statistik Ringkas")
         st.write(df_putus[["ipm_2024","putus_sd","putus_smp","putus_sma","putus_smk"]].describe())
 
-        st.markdown("""
-        ### Catatan Interpretasi Cepat
-        - **Kiri-atas** → IPM rendah tapi putus rendah (perlu dicek apakah datanya kecil atau under-report)
-        - **Kiri-bawah** → IPM rendah & putus tinggi → red flag (akses & retensi pendidikan lemah)
-        """)
 
 with tab_sosial:
         # === 2. Scatter Plot IPM vs Penduduk Miskin ===
@@ -773,106 +883,57 @@ with tab_sosial:
         )
 
 #===============================
-    st.header("Hubungan Pengeluaran Pangan terhadap APS")
-    st.write("""Visualisasi ini menunjukkan hubungan antara angka partisipasi sekolah dengan pengeluaran pangan. 
-             Scatter plot ini digunakan untuk melihat bagaimanakah hubungan pangan terhadap angka partisipasi sekolah di indonesia""")
+    st.header("Hubungan Pengeluaran Pangan dan Non-Pangan terhadap APS")
+    st.write("""Visualisasi ini menunjukkan hubungan antara angka partisipasi sekolah dengan pengeluaran pangan dan non-pangan. 
+             Scatter plot ini digunakan untuk melihat bagaimanakah hubungan pangan dan non-pangan terhadap angka partisipasi sekolah di indonesia""")
     with st.expander("Tekan untuk melihat visualisasi"):
 
-        # Buat kolom APS Total (jika belum ada)
-        df["aps_total"] = df[["aps_7_12","aps_13_15","aps_16_18","aps_19_23"]].sum(axis=1)
+        # === Buat kolom APS Total ===
+        df["aps_total"] = df[["aps_7_12", "aps_13_15", "aps_16_18", "aps_19_23"]].sum(axis=1)
 
+        # === Pilihan APS ===
         aps_map = {
             "APS 7–12 Tahun": "aps_7_12",
             "APS 13–15 Tahun": "aps_13_15",
             "APS 16–18 Tahun": "aps_16_18",
             "APS 19–23 Tahun": "aps_19_23",
-            "APS Total": "aps_total"   
+            "APS Total": "aps_total"
         }
 
-        # Dropdown APS (sudah termasuk APS total)
-        selected_aps_pangan = st.selectbox(
-            "Pilih Jenjang APS (Pangan):",
-            list(aps_map.keys()),
-            key="aps_pangan"
-        )
+        selected_aps = st.selectbox("Pilih Jenjang APS:", list(aps_map.keys()))
+        aps_col = aps_map[selected_aps]
 
-        aps_col_pangan = aps_map[selected_aps_pangan]
+        pengeluaran_var = "pengeluaran_pangan_dan_nonpangan"
 
-        # Pilih variabel pangan
-        pangan_var = st.selectbox(
-            "Pilih Indikator Pengeluaran Pangan:",
-            ["kalori", "protein"],
-            key="pangan_var"
-        )
+        # Filter data (jika mau hilangkan baris 'Indonesia')
+        df_plot = df[df["provinsi"] != "Indonesia"].copy()
 
-        # Scatter (tanpa warna)
-        fig_pangan = px.scatter(
-            df,
-            x=pangan_var,
-            y=aps_col_pangan,
+        # Scatter plot
+        fig = px.scatter(
+            df_plot,
+            x=pengeluaran_var,
+            y=aps_col,
             hover_name="provinsi",
             trendline="ols",
-            title=f"Pengaruh {pangan_var.title()} terhadap {selected_aps_pangan}"
+            title=f"Pengeluaran {pengeluaran_var.replace('_',' ').title()} vs {selected_aps}"
         )
 
-        fig_pangan.update_traces(marker=dict(size=12, opacity=0.75))
-        fig_pangan.update_layout(height=500)
+        fig.update_traces(marker=dict(size=12, opacity=0.75))
+        fig.update_layout(
+            xaxis_title="Pengeluaran Pangan & Non-Pangan",
+            yaxis_title=selected_aps,
+            template="plotly_white",
+            height=500
+        )
 
-        st.plotly_chart(fig_pangan, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True)
 
         # Korelasi
-        corr_pangan = df[pangan_var].corr(df[aps_col_pangan])
+        corr = df_plot[pengeluaran_var].corr(df_plot[aps_col])
         st.metric(
-            label=f"Korelasi {pangan_var.title()} → {selected_aps_pangan}",
-            value=f"{corr_pangan:.3f}",
-            delta="artinya ketika pengeluaran pangan meningkat, APS cenderung ikut meningkat" if corr_pangan > 0 else "artinya ketika pengeluaran pangan meningkat, APS justru cenderung menurun"
-        )
-
-
-#====================================
-    st.header("Hubungan Pengeluaran Non-Pangan terhadap APS")
-    st.write("""Visualisasi ini menunjukkan hubungan antara angka partisipasi sekolah dengan pengeluaran non pangan. 
-             Scatter plot ini digunakan untuk melihat bagaimanakah hubungan non pangan terhadap angka partisipasi sekolah di indonesia""")
-
-    with st.expander("Tekan untuk melihat visualisasi"):
-
-        selected_aps_non = st.selectbox(
-            "Pilih Jenjang APS (Non-Pangan):",
-            list(aps_map.keys()),
-            key="aps_non"
-        )
-
-        aps_col_non = aps_map[selected_aps_non]
-
-        # Pilih variabel non-pangan
-        nonpangan_var = st.selectbox(
-            "Pilih Indikator Non-Pangan:",
-            ["internet_kotadesa", "kendaraan",
-            "pendapatan_pertanian", "pendapatan_industri", "pendapatan_jasa"],
-            key="nonpangan_var"
-        )
-
-        # Scatter tanpa warna
-        fig_non = px.scatter(
-            df,
-            x=nonpangan_var,
-            y=aps_col_non,
-            hover_name="provinsi",
-            trendline="ols",
-            title=f"Pengaruh {nonpangan_var.replace('_',' ').title()} terhadap {selected_aps_non}"
-        )
-
-        fig_non.update_traces(marker=dict(size=12, opacity=0.75))
-        fig_non.update_layout(height=500)
-
-        st.plotly_chart(fig_non, use_container_width=True)
-
-        # Korelasi
-        corr_non = df[nonpangan_var].corr(df[aps_col_non])
-        st.metric(
-            label=f"Korelasi {nonpangan_var.replace('_',' ').title()} → {selected_aps_non}",
-            value=f"{corr_non:.3f}",
-            delta="artinya ketika pengeluaran non pangan meningkat, APS cenderung ikut meningkat." if corr_non > 0 else "artinya ketika pengeluaran non pangan meningkat, APS justru cenderung menurun."
+            label=f"Korelasi {pengeluaran_var.replace('_',' ').title()} → {selected_aps}",
+            value=f"{corr:.3f}",
+            delta="positif artinya APS meningkat seiring pengeluaran meningkat" if corr > 0 else "negatif artinya APS menurun seiring pengeluaran meningkat"
         )
 
     #========================
@@ -1353,7 +1414,7 @@ with tab_infrastruktur:
                 color="provinsi",
                 hover_name="provinsi",
                 title=f"Bubble Chart – Pengaruh Rasio Murid–Guru Terhadap Kualitas Pendidikan ({jenjang})",
-                size_max=60,
+                size_max=60
             )
 
             fig.update_layout(
@@ -1366,8 +1427,9 @@ with tab_infrastruktur:
             st.plotly_chart(fig, use_container_width=True)
 
         st.info(
-            "💡 *Interpretasi Cepat:* jika bubble cenderung naik ke atas saat rasio makin rendah, "
-            "artinya guru cukup punya dampak positif ke kualitas pendidikan."
+            "💡 *Interpretasi:* Pada grafik, posisi bubble menunjukkan hubungan antara beban guru dan capaian pendidikan. "
+            "Jika bubble lebih tinggi saat rasio murid–guru rendah, hal ini menandakan guru dapat memberikan perhatian lebih kepada setiap siswa sehingga kualitas pembelajaran lebih baik. "
+            "Sebaliknya, jika bubble lebih rendah saat rasio tinggi, artinya beban guru lebih besar dan efektivitas pembelajaran berpotensi menurun."
         )
 
     # === KETERSEDIAAN SEKOLAH TERHADAP ANGKA PUTUS SEKOLAH
@@ -1434,4 +1496,130 @@ with tab_infrastruktur:
 
         st.plotly_chart(fig, use_container_width=True)
 
-# ================================= 
+# === KETAHANAN PANGAN DAN AIR ===
+with tab_airpangan:
+
+    st.subheader("Pengaruh Ketahanan Pangan dan Akses Air Layak terhadap Kualitas SDM")
+    st.write(
+        "Bagian ini menampilkan hubungan antara kondisi pangan dan air dengan kualitas "
+        "sumber daya manusia. Semakin baik ketahanan pangan dan akses air minum layak, "
+        "diharapkan semakin tinggi pula kualitas SDM suatu wilayah."
+    )
+
+    # === HILANGKAN BARIS 'Indonesia' ===
+    df_plot = df[df["provinsi"] != "Indonesia"]
+
+    # ==========================================================
+    # 1. PLOT KETAHANAN PANGAN vs IPM
+    # ==========================================================
+    st.subheader("Ketahanan Pangan dan Kualitas SDM")
+
+    with st.expander("Tekan untuk melakukan analisis"):
+
+        if ("ketahanan_pangan" not in df_plot.columns) or ("ipm_2024" not in df_plot.columns):
+            st.error("Kolom 'ketahanan_pangan' atau 'ipm_2024' tidak ditemukan pada dataset.")
+        else:
+            fig1 = px.scatter(
+                df_plot,
+                x="ketahanan_pangan",
+                y="ipm_2024",
+                color="provinsi",
+                hover_name="provinsi",
+                title="Scatter Plot – Ketahanan Pangan vs Indeks Pembangunan Manusia (IPM) 2024",
+                size_max=50,
+            )
+
+            fig1.update_layout(
+                xaxis_title="Indeks Ketahanan Pangan",
+                yaxis_title="IPM 2024",
+                legend_title="Provinsi",
+                template="plotly_white"
+            )
+
+            st.plotly_chart(fig1, use_container_width=True)
+
+        st.info(
+            "💡 *Interpretasi:* Titik yang cenderung naik menunjukkan bahwa semakin baik ketahanan pangan, "
+            "semakin tinggi kualitas SDM."
+        )
+
+    # ==========================================================
+    # 2. PLOT AIR MINUM LAYAK vs IPM
+    # ==========================================================
+    st.subheader("Akses Air Minum Layak dan Kualitas SDM")
+
+    with st.expander("Tekan untuk melakukan analisis"):
+
+        if ("airminum_layak" not in df_plot.columns) or ("ipm_2024" not in df_plot.columns):
+            st.error("Kolom 'airminum_layak' atau 'ipm_2024' tidak ditemukan pada dataset.")
+        else:
+            fig2 = px.scatter(
+                df_plot,
+                x="airminum_layak",
+                y="ipm_2024",
+                color="provinsi",
+                hover_name="provinsi",
+                title="Scatter Plot – Akses Air Minum Layak vs Indeks Pembangunan Manusia (IPM) 2024",
+                size_max=50,
+            )
+
+            fig2.update_layout(
+                xaxis_title="Akses Air Minum Layak (%)",
+                yaxis_title="IPM 2024",
+                legend_title="Provinsi",
+                template="plotly_white"
+            )
+
+            st.plotly_chart(fig2, use_container_width=True)
+
+        st.info(
+            "💡 *Interpretasi:* Semakin tinggi akses air minum layak, umumnya kualitas SDM juga lebih tinggi."
+        )
+
+# === KONSUMSI GIZI ===
+
+with tab_gizi:
+    st.subheader("Pengaruh Konsumsi Gizi (Protein) terhadap Kualitas SDM")
+    st.write(
+        "Bagian ini menunjukkan hubungan antara konsumsi protein dan Indeks Pembangunan "
+        "Manusia (IPM). Peningkatan asupan gizi yang lebih baik diharapkan berkontribusi "
+        "positif terhadap kualitas SDM di setiap provinsi."
+    )
+
+    df_plot = df[df["provinsi"] != "Indonesia"].copy()
+
+    # Pastikan kolom numerik
+    df_plot["protein"] = pd.to_numeric(df_plot["protein"], errors="coerce")
+    df_plot["ipm_2024"] = pd.to_numeric(df_plot["ipm_2024"], errors="coerce")
+
+    df_plot = df_plot.dropna(subset=["protein", "ipm_2024"])
+
+    st.subheader("Konsumsi Protein dan Kualitas SDM")
+
+    with st.expander("Tekan untuk melakukan analisis"):
+
+        if ("protein" not in df_plot.columns) or ("ipm_2024" not in df_plot.columns):
+            st.error("Kolom 'protein' atau 'ipm_2024' tidak ditemukan pada dataset.")
+        else:
+            fig = px.scatter(
+                df_plot,
+                x="protein",
+                y="ipm_2024",
+                color="provinsi",
+                hover_name="provinsi",
+                trendline="ols",
+                title="Scatter Plot – Konsumsi Protein vs Indeks Pembangunan Manusia (IPM) 2024"
+            )
+
+            fig.update_layout(
+                xaxis_title="Konsumsi Protein (kapita)",
+                yaxis_title="IPM 2024",
+                template="plotly_white"
+            )
+
+            st.plotly_chart(fig, use_container_width=True)
+
+        st.info(
+            "*Interpretasi:* Jika titik-titik membentuk pola naik, maka provinsi dengan "
+        "konsumsi protein lebih tinggi cenderung memiliki IPM lebih baik."
+        )
