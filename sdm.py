@@ -707,49 +707,61 @@ with tab_sosial:
 # =======   
     st.header("Penduduk Miskin dan Keluarga Penerima Bansos per Provinsi")
     with st.expander("Tekan untuk melihat visualisasi"):
+
         # Pastikan kolom numerik
         df['keluarga_penerima'] = df['keluarga_penerima'].astype(str).str.replace(',', '').str.strip()
         df['keluarga_penerima'] = pd.to_numeric(df['keluarga_penerima'], errors='coerce')
 
+        # Buang baris 'Indonesia'
+        df_clean = df[df["provinsi"] != "Indonesia"].copy()
+
         # Agregasi per provinsi
-        df_plot = df.groupby("provinsi")[['penduduk_miskin', 'keluarga_penerima']].sum().reset_index()
+        df_plot = df_clean.groupby("provinsi")[['penduduk_miskin', 'keluarga_penerima']].sum().reset_index()
 
-        # Melt supaya jadi format panjang untuk Plotly
-        df_melt = df_plot.melt(id_vars='provinsi', value_vars=['penduduk_miskin', 'keluarga_penerima'],
-                            var_name='Variabel', value_name='Jumlah')
+        # Melt supaya format long
+        df_melt = df_plot.melt(
+            id_vars='provinsi',
+            value_vars=['penduduk_miskin', 'keluarga_penerima'],
+            var_name='Variabel',
+            value_name='Jumlah'
+        )
 
-        # Rename agar lebih rapi
-        rename_vars = {
+        # Rename kategori biar rapi
+        df_melt['Variabel'] = df_melt['Variabel'].map({
             'penduduk_miskin': 'Penduduk Miskin',
             'keluarga_penerima': 'Keluarga Penerima Bansos'
-        }
-        df_melt['Variabel'] = df_melt['Variabel'].map(rename_vars)
+        })
 
-        # Area chart
-        fig = px.area(
+        # === Grouped Bar Chart ===
+        fig = px.bar(
             df_melt,
             x='provinsi',
             y='Jumlah',
             color='Variabel',
-            markers=True,
+            barmode='group',
             title="Penduduk Miskin dan Keluarga Penerima Bansos per Provinsi"
         )
 
-        fig.update_traces(opacity=0.5, line=dict(width=3))
-        fig.update_layout(height=450)
+        fig.update_layout(
+            height=450,
+            xaxis_title="Provinsi",
+            yaxis_title="Jumlah",
+            hovermode="x unified",
+            legend_title="Kategori"
+        )
 
         st.plotly_chart(fig, use_container_width=True)
 
-        # Hitung korelasi
+        # === Korelasi ===
         corr_bansos_pendudukmiskin = df_plot['penduduk_miskin'].corr(df_plot['keluarga_penerima'])
 
         st.metric(
             label="Korelasi Penduduk Miskin vs Keluarga Penerima Bansos",
             value=f"{corr_bansos_pendudukmiskin:.3f}",
             delta=(
-                f"Korelasi positif: provinsi dengan penduduk miskin lebih banyak cenderung menerima bantuan sosial lebih banyak."
+                "Korelasi positif: provinsi dengan penduduk miskin lebih banyak cenderung menerima bantuan sosial lebih banyak."
                 if corr_bansos_pendudukmiskin > 0
-                else f"Korelasi negatif: provinsi dengan penduduk miskin lebih banyak cenderung menerima bantuan sosial lebih sedikit."
+                else "Korelasi negatif: provinsi dengan penduduk miskin lebih banyak cenderung menerima bantuan sosial lebih sedikit."
             )
         )
 
@@ -1303,60 +1315,6 @@ with tab_lingkungan_geospasial:
                 "artinya semakin banyak bencana alam, IPM cenderung lebih rendah"
                 if corr_value < 0
                 else "artinya semakin banyak bencana alam, IPM cenderung lebih tinggi"
-            )
-        )
-
-# ====================
-    # --- Header & Penjelasan ---
-    st.header("Pengaruh Bencana Alam terhadap Angka Partisipasi Sekolah (APS)")
-    st.write("""
-    Scatter plot ini digunakan untuk melihat apakah provinsi dengan **frekuensi bencana alam tinggi** cenderung memiliki **APS lebih rendah**.  
-    APS mencerminkan partisipasi pendidikan anak-anak dan remaja.
-    """)
-
-    with st.expander("Tekan untuk melakukan analisis"):
-
-        # Dropdown pilih jenis APS
-        pilihan_aps = st.selectbox(
-            "Pilih Indikator APS",
-            ["aps_7_12","aps_13_15","aps_16_18","aps_19_23","aps_total"],
-            key="aps_bencana"
-        )
-
-        # Dropdown pilih jenis bencana
-        pilihan_bencana = st.selectbox(
-            "Pilih Jenis Bencana",
-            ["banjir","gempa_bumi","tanah_longsor","total_bencana"],
-            key="bencana_aps"
-        )
-
-        # Scatter plot
-        fig = px.scatter(
-            df,
-            x=pilihan_bencana,
-            y=pilihan_aps,
-            trendline="ols",
-            hover_name="provinsi",
-            labels={
-                pilihan_bencana: pilihan_bencana.replace("_"," ").capitalize(),
-                pilihan_aps: pilihan_aps.replace("_"," ").capitalize()
-            },
-            title=f"{pilihan_bencana.replace('_',' ').capitalize()} vs {pilihan_aps.replace('_',' ').capitalize()}"
-        )
-
-        fig.update_traces(marker=dict(size=11, opacity=0.8))
-        fig.update_layout(height=500)
-        st.plotly_chart(fig, use_container_width=True)
-
-        # Korelasi otomatis
-        corr_value = df[pilihan_bencana].corr(df[pilihan_aps])
-        st.metric(
-            label=f"Korelasi {pilihan_bencana.replace('_',' ').capitalize()} → {pilihan_aps.replace('_',' ').capitalize()}",
-            value=f"{corr_value:.3f}",
-            delta=(
-                "artinya semakin banyak bencana alam, APS cenderung lebih rendah"
-                if corr_value < 0
-                else "artinya semakin banyak bencana alam, APS cenderung lebih tinggi"
             )
         )
 
