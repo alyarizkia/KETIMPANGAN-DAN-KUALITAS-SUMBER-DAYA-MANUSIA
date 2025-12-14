@@ -81,7 +81,7 @@ with tab_capaian:
             y="nilai",
             markers=True,
             title=f"Tren Nasional Penyelesaian Pendidikan – {selected_jenjang_nasional}",
-            labels={"nilai": "Persentase (%)"}
+            labels={"nilai": "Tingkat Penyelesaian"}
         )
 
         fig_nasional.update_traces(mode="lines+markers")
@@ -139,7 +139,7 @@ with tab_capaian:
             y="nilai",
             markers=True,
             title=f"Tren Penyelesaian Pendidikan – {selected_prov} ({selected_jenjang_prov})",
-            labels={"nilai": "Persentase (%)"}
+            labels={"nilai": "Tingkat Penyelesaian"}
         )
 
         fig_prov.update_traces(mode="lines+markers")
