@@ -818,168 +818,134 @@ with tab_lingkungan_geospasial:
                 else "artinya ketika tingkat bencana meningkat, putus sekolah justru cenderung menurun."
             )
         )
-    #=======================
-        # --- Header & Penjelasan ---
-    st.header("Area Chart Putus Sekolah")
-    st.write("""
-    Visualisasi ini menampilkan **angka putus sekolah** per provinsi. Hover atau klik provinsi untuk melihat **jumlah bencana** dan total bencana.  
-    """)
+    
+    #======
+    # ===============================
+    # AGREGASI PENYELESAIAN PENDIDIKAN
+    # ===============================
 
-    with st.expander("Tekan untuk melihat visualisasi"):
+    df["penyelesaian_SD_total"] = (
+        df["penyelesaian_pendidikanSD2020"] +
+        df["penyelesaian_pendidikanSD2021"] +
+        df["penyelesaian_pendidikanSD2022"] +
+        df["penyelesaian_pendidikanSD2023"] +
+        df["penyelesaian_pendidikanSD2024"]
+    )
 
-        # Dropdown pilih jenjang putus sekolah
-        pilihan_jenjang = st.selectbox(
-            "Pilih Jenjang Putus Sekolah", 
-            ["SD","SMP","SMA","SMK","Total Putus Sekolah"],
-            key="area_jenjang"
-        )
+    df["penyelesaian_SMP_total"] = (
+        df["penyelesaian_pendidikanSMP2020"] +
+        df["penyelesaian_pendidikanSMP2021"] +
+        df["penyelesaian_pendidikanSMP2022"] +
+        df["penyelesaian_pendidikanSMP2023"] +
+        df["penyelesaian_pendidikanSMP2024"]
+    )
 
-        if pilihan_jenjang == "Total Putus Sekolah":
-            kolom_putus = "total_putus"
-        else:
-            kolom_putus = f"putus_{pilihan_jenjang.lower()}"
+    df["penyelesaian_SMA_total"] = (
+        df["penyelesaian_pendidikanSMA2020"] +
+        df["penyelesaian_pendidikanSMA2021"] +
+        df["penyelesaian_pendidikanSMA2022"] +
+        df["penyelesaian_pendidikanSMA2023"] +
+        df["penyelesaian_pendidikanSMA2024"]
+    )
 
-        # --- Area Chart Interaktif ---
-        fig_area = px.area(
-            df.sort_values('provinsi'),
-            x='provinsi',
-            y=kolom_putus,
-            hover_data={
-                'provinsi': True,
-                kolom_putus: True,
-                'banjir': True,
-                'gempa_bumi': True,
-                'tanah_longsor': True,
-                'total_bencana': True
-            },
-            labels={
-                'provinsi':'Provinsi',
-                kolom_putus:f'Putus Sekolah {pilihan_jenjang}',
-                'banjir':'Jumlah Banjir',
-                'gempa_bumi':'Jumlah Gempa Bumi',
-                'tanah_longsor':'Jumlah Tanah Longsor',
-                'total_bencana':'Total Bencana'
-            },
-            title=f"Putus Sekolah {pilihan_jenjang} per Provinsi dengan Detail Bencana"
-        )
+    df["penyelesaian_SD_SMA_total"] = (
+        df["penyelesaian_SD_total"] +
+        df["penyelesaian_SMP_total"] +
+        df["penyelesaian_SMA_total"]
+    )
 
-        fig_area.update_layout(height=500, xaxis_tickangle=-45)
-        st.plotly_chart(fig_area, use_container_width=True)
 
-        # --- Interpretasi Otomatis ---
-        prov_high = df.loc[df[kolom_putus].idxmax()]
-        prov_low  = df.loc[df[kolom_putus].idxmin()]
-
-        st.subheader("Interpretasi Otomatis")
-        st.write(f"- Provinsi dengan **putus sekolah tertinggi**: **{prov_high['provinsi']}** ({prov_high[kolom_putus]} siswa), total bencana: {prov_high['total_bencana']} (banjir: {prov_high['banjir']}, gempa: {prov_high['gempa_bumi']}, longsor: {prov_high['tanah_longsor']})")
-        st.write(f"- Provinsi dengan **putus sekolah terendah**: **{prov_low['provinsi']}** ({prov_low[kolom_putus]} siswa), total bencana: {prov_low['total_bencana']} (banjir: {prov_low['banjir']}, gempa: {prov_low['gempa_bumi']}, longsor: {prov_low['tanah_longsor']})")
-
-#=====================
-    st.header("Pengaruh Akses Internet terhadap IPM")
-    st.write("""
-    Scatter plot ini digunakan untuk melihat apakah provinsi dengan **akses internet** yang tinggi cenderung memiliki **IPM yang lebih tinggi**. Dan juga untuk memastikan apakah daerah dengan akses internet rendah memiliki capaian pendidikan yang lebih buruk.
-    """)
+    st.header("Pengaruh Akses Internet terhadap Pendidikan")
+    st.write("""Scatter plot ini menunjukkan hubungan antara **akses internet** di provinsi dengan **indikator pendidikan**.  
+    Tujuannya untuk melihat apakah provinsi dengan akses internet yang lebih rendah cenderung memiliki capaian pendidikan yang lebih rendah.""")
 
     with st.expander("Tekan untuk melakukan analisis"):
 
-        # Dropdown pilih indikator akses internet
-        pilihan_internet = st.selectbox(
-            "Pilih Indikator Akses Internet", 
-            ["internet_kota","internet_desa","internet_kotadesa"],
-            key="ipm_internet"
+        # Dropdown indikator pendidikan (Y)
+        pilihan_pendidikan = st.selectbox(
+            "Pilih Indikator Pendidikan",
+            [
+                # APS
+                "aps_7_12","aps_13_15","aps_16_18","aps_19_23","aps_total",
+
+                # Lama sekolah
+                "lama_sekolah",
+
+                # Penyelesaian pendidikan (agregat)
+                "penyelesaian_SD_total",
+                "penyelesaian_SMP_total",
+                "penyelesaian_SMA_total",
+                "penyelesaian_SD_SMA_total"
+            ],
+            key="indikator_pendidikan"
         )
+
+        kolom_y = pilihan_pendidikan
+
+        # Dropdown indikator akses internet (X)
+        pilihan_internet = st.selectbox(
+            "Pilih Indikator Akses Internet",
+            ["internet_kota","internet_desa","internet_kotadesa"],
+            key="akses_internet"
+        )
+
+        # Filter: kecualikan agregat nasional
+        df_plot = df[df["provinsi"].str.lower() != "indonesia"]
 
         # Scatter plot
         fig = px.scatter(
-            df,
+            df_plot,
             x=pilihan_internet,
-            y='ipm_2024',
+            y=kolom_y,
             trendline="ols",
             hover_name="provinsi",
             labels={
                 pilihan_internet: pilihan_internet.replace("_"," ").capitalize(),
-                'ipm_2024': 'IPM 2024'
+                kolom_y: kolom_y.replace("_"," ").capitalize()
             },
-            title=f"{pilihan_internet.replace('_',' ').capitalize()} vs IPM 2024"
+            title=f"{pilihan_internet.replace('_',' ').capitalize()} vs {kolom_y.replace('_',' ').capitalize()}"
         )
 
         fig.update_traces(marker=dict(size=11, opacity=0.8))
         fig.update_layout(height=500)
         st.plotly_chart(fig, use_container_width=True)
 
-        # Korelasi otomatis
-        corr_value = df[pilihan_internet].corr(df['ipm_2024'])
-        st.metric(
-            label=f"Korelasi {pilihan_internet.replace('_',' ').capitalize()} → IPM 2024",
-            value=f"{corr_value:.3f}",
-            delta=(
-                "artinya akses internet yang lebih tinggi berkaitan dengan IPM lebih tinggi → capaian pendidikan, kesehatan, dan standar hidup lebih baik."
+        # Korelasi + interpretasi
+        corr_value = df_plot[pilihan_internet].corr(df_plot[kolom_y])
+
+        if kolom_y.startswith("aps"):
+            interpretasi = (
+                "artinya akses internet yang lebih tinggi berkaitan dengan APS yang lebih tinggi → partisipasi pendidikan lebih baik."
                 if corr_value > 0
-                else "artinya akses internet yang lebih rendah berkaitan dengan IPM lebih rendah → capaian pendidikan, kesehatan, dan standar hidup kemungkinan lebih buruk."
+                else "artinya akses internet yang lebih rendah berkaitan dengan APS yang lebih rendah → partisipasi pendidikan kemungkinan lebih buruk."
             )
-        )
 
-#======
-    st.header("Pengaruh Akses Internet terhadap Angka Partisipasi Sekolah (APS)")
-    st.write("""Scatter plot ini menunjukkan hubungan antara **akses internet** di provinsi dengan **Angka Partisipasi Sekolah (APS)**.  
-             Tujuannya untuk melihat apakah provinsi dengan akses internet yang lebih rendah cenderung memiliki partisipasi sekolah yang lebih rendah, 
-             Visualisasi ini membantu mengidentifikasi provinsi yang mungkin membutuhkan peningkatan infrastruktur digital untuk mendukung pendidikan.""")
-
-    with st.expander("Tekan untuk melakukan analisis"):
-
-        # Dropdown pilih indikator APS (termasuk Total APS)
-        pilihan_aps = st.selectbox(
-            "Pilih Indikator APS",
-            ["aps_7_12","aps_13_15","aps_16_18","aps_19_23","Total APS"],
-            key="aps_internet"
-        )
-
-        if pilihan_aps == "Total APS":
-            kolom_aps = "aps_total"
-        else:
-            kolom_aps = pilihan_aps
-
-        # Dropdown pilih indikator akses internet
-        pilihan_internet = st.selectbox(
-            "Pilih Indikator Akses Internet", 
-            ["internet_kota","internet_desa","internet_kotadesa"],
-            key="aps_internet_access"
-        )
-
-        # Scatter plot
-        fig = px.scatter(
-            df,
-            x=pilihan_internet,
-            y=kolom_aps,
-            trendline="ols",
-            hover_name="provinsi",
-            labels={
-                pilihan_internet: pilihan_internet.replace("_"," ").capitalize(),
-                kolom_aps: kolom_aps.replace("_"," ").capitalize()
-            },
-            title=f"{pilihan_internet.replace('_',' ').capitalize()} vs {kolom_aps.replace('_',' ').capitalize()}"
-        )
-
-        fig.update_traces(marker=dict(size=11, opacity=0.8))
-        fig.update_layout(height=500)
-        st.plotly_chart(fig, use_container_width=True)
-
-        # Korelasi otomatis
-        corr_value = df[pilihan_internet].corr(df[kolom_aps])
-        st.metric(
-            label=f"Korelasi {pilihan_internet.replace('_',' ').capitalize()} → {kolom_aps.replace('_',' ').capitalize()}",
-            value=f"{corr_value:.3f}",
-            delta=(
-                "artinya akses internet yang lebih tinggi berkaitan dengan APS lebih tinggi → partisipasi pendidikan lebih baik."
+        elif kolom_y == "lama_sekolah":
+            interpretasi = (
+                "artinya akses internet yang lebih tinggi berkaitan dengan rata-rata lama sekolah yang lebih tinggi → capaian pendidikan lebih baik."
                 if corr_value > 0
-                else "artinya akses internet yang lebih rendah berkaitan dengan APS lebih rendah → partisipasi pendidikan kemungkinan lebih buruk."
+                else "artinya akses internet yang lebih rendah berkaitan dengan rata-rata lama sekolah yang lebih rendah → capaian pendidikan kemungkinan lebih buruk."
             )
+
+        elif kolom_y.startswith("penyelesaian_"):
+            interpretasi = (
+                "artinya akses internet yang lebih tinggi berkaitan dengan tingkat penyelesaian pendidikan yang lebih tinggi."
+                if corr_value > 0
+                else "artinya akses internet yang lebih rendah berkaitan dengan tingkat penyelesaian pendidikan yang lebih rendah."
+            )
+
+        st.metric(
+            label=f"Korelasi {pilihan_internet.replace('_',' ').capitalize()} → {kolom_y.replace('_',' ').capitalize()}",
+            value=f"{corr_value:.3f}",
+            delta=interpretasi
         )
 
     #==========================
     st.header("Pengaruh Jumlah Kendaraan terhadap Partisipasi Sekolah (APS)")
     st.write("""
-    Scatter plot ini digunakan untuk melihat apakah **jumlah kendaraan** mempengaruhi **Angka Partisipasi Sekolah**. Jumlah kendaraan bisa menjadi proxy akses transportasi menuju sekolah""")
+    Scatter plot ini digunakan untuk melihat apakah **jumlah kendaraan** mempengaruhi **Angka Partisipasi Sekolah**. 
+    Jumlah kendaraan bisa menjadi proxy akses transportasi menuju sekolah.
+    """)
 
     with st.expander("Tekan untuk melakukan analisis"):
 
@@ -989,6 +955,9 @@ with tab_lingkungan_geospasial:
             ["aps_7_12","aps_13_15","aps_16_18","aps_19_23","aps_total"],
             key="aps_kendaraan"
         )
+
+        # === MODIFIKASI LANGSUNG: KECUALIKAN INDONESIA ===
+        df = df[df["provinsi"] != "Indonesia"]
 
         # Scatter plot
         fig = px.scatter(
@@ -1020,53 +989,6 @@ with tab_lingkungan_geospasial:
             )
         )
 
-#===
-
-# --- Header & Penjelasan ---
-    st.header("Pengaruh Lokasi Bencana Alam terhadap IPM Provinsi")
-    st.write("""
-    Scatter plot ini digunakan untuk melihat apakah provinsi dengan **frekuensi bencana alam tinggi** cenderung memiliki **IPM lebih rendah**.  
-    IPM mencerminkan capaian pendidikan, kesehatan, dan standar hidup.
-    """)
-
-    with st.expander("Tekan untuk melakukan analisis"):
-
-        # Dropdown pilih jenis bencana
-        pilihan_bencana = st.selectbox(
-            "Pilih Jenis Bencana",
-            ["banjir","gempa_bumi","tanah_longsor","total_bencana"],
-            key="bencana_ipm"
-        )
-
-        # Scatter plot
-        fig = px.scatter(
-            df,
-            x=pilihan_bencana,
-            y='ipm_2024',
-            trendline="ols",
-            hover_name="provinsi",
-            labels={
-                pilihan_bencana: pilihan_bencana.replace("_"," ").capitalize(),
-                'ipm_2024': 'IPM 2024'
-            },
-            title=f"{pilihan_bencana.replace('_',' ').capitalize()} vs IPM 2024"
-        )
-
-        fig.update_traces(marker=dict(size=11, opacity=0.8))
-        fig.update_layout(height=500)
-        st.plotly_chart(fig, use_container_width=True)
-
-        # Korelasi otomatis
-        corr_value = df[pilihan_bencana].corr(df['ipm_2024'])
-        st.metric(
-            label=f"Korelasi {pilihan_bencana.replace('_',' ').capitalize()} → IPM 2024",
-            value=f"{corr_value:.3f}",
-            delta=(
-                "artinya semakin banyak bencana alam, IPM cenderung lebih rendah"
-                if corr_value < 0
-                else "artinya semakin banyak bencana alam, IPM cenderung lebih tinggi"
-            )
-        )
 
 # === INFRASTRUKTUR ===
 
