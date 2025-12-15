@@ -75,6 +75,9 @@ with tab_capaian:
                 "nilai": [df_nas[col].values[0] for col in pend_cols[selected_jenjang_nasional]]
             })
 
+        y_min = df_nasional_long["nilai"].min()
+        y_max = df_nasional_long["nilai"].max()
+
         fig_nasional = px.line(
             df_nasional_long,
             x="tahun",
@@ -87,7 +90,15 @@ with tab_capaian:
         fig_nasional.update_traces(mode="lines+markers")
         fig_nasional.update_traces(hovertemplate='%{y}<extra></extra>')
         fig_nasional.update_xaxes(type="category")
-        fig_nasional.update_layout(height=450)
+
+        padding = (y_max - y_min) * 0.1  # 10% ruang
+
+        fig_nasional.update_layout(
+            yaxis=dict(
+                range=[y_min - padding, y_max + padding]
+            ),
+            height=450
+        )
 
         st.plotly_chart(fig_nasional, use_container_width=True)
 
@@ -133,6 +144,12 @@ with tab_capaian:
                 "nilai": [df_prov[col].values[0] for col in pend_cols[selected_jenjang_prov]]
             })
 
+        y_min = df_prov_long["nilai"].min()
+        y_max = df_prov_long["nilai"].max()
+
+        range_data = y_max - y_min
+        padding_top = max(range_data * 0.1, 1)  # minimal +1
+
         fig_prov = px.line(
             df_prov_long,
             x="tahun",
@@ -145,7 +162,11 @@ with tab_capaian:
         fig_prov.update_traces(mode="lines+markers")
         fig_prov.update_traces(hovertemplate='%{y}<extra></extra>')
         fig_prov.update_xaxes(type="category")
-        fig_prov.update_layout(height=450)
+        
+        fig_prov.update_yaxes(
+            range=[y_min - padding, y_max + padding_top],
+            autorange=False
+        )
 
         st.plotly_chart(fig_prov, use_container_width=True)
 
@@ -189,20 +210,27 @@ with tab_capaian:
             "nilai": df_plot[selected_col]
         })
 
+        df_bar = df_bar.sort_values(
+            by="nilai",
+            ascending=False
+        )
+
         # Plot Bar Chart
         fig_bar = px.bar(
             df_bar,
             x="provinsi",
             y="nilai",
-            color="provinsi",
             title=f"Penyelesaian Pendidikan {selected_jenjang} Tahun {selected_tahun}",
             labels={"nilai": "Persentase (%)", "provinsi": "Provinsi"}
         )
 
         fig_bar.update_layout(
-            xaxis_tickangle=45,
-            height=550,
-            showlegend=False  
+            xaxis=dict(
+                categoryorder="array",
+                categoryarray=df_bar["provinsi"],
+                tickangle=90
+            ),
+            showlegend=False 
         )
 
         st.plotly_chart(fig_bar, use_container_width=True)
@@ -525,12 +553,18 @@ with tab_sosial:
         df_clean = df[df["provinsi"] != "Indonesia"].copy()
 
         # Agregasi per provinsi
-        df_plot = df_clean.groupby("provinsi")[['penduduk_miskin', 'keluarga_penerima']].sum().reset_index()
+        df_plot = (
+            df_clean
+            .groupby("provinsi")[['penduduk_miskin', 'keluarga_penerima', 'jumlah_penduduk']]
+            .sum()
+            .reset_index()
+            .sort_values(by='jumlah_penduduk', ascending=False)
+        )
 
         # Melt supaya format long
         df_melt = df_plot.melt(
             id_vars='provinsi',
-            value_vars=['penduduk_miskin', 'keluarga_penerima'],
+            value_vars=['penduduk_miskin', 'keluarga_penerima', 'jumlah_penduduk'],
             var_name='Variabel',
             value_name='Jumlah'
         )
@@ -538,7 +572,8 @@ with tab_sosial:
         # Rename kategori biar rapi
         df_melt['Variabel'] = df_melt['Variabel'].map({
             'penduduk_miskin': 'Penduduk Miskin',
-            'keluarga_penerima': 'Keluarga Penerima Bansos'
+            'keluarga_penerima': 'Keluarga Penerima Bansos',
+            'jumlah_penduduk': 'Jumlah Penduduk'
         })
 
         # === Grouped Bar Chart ===
@@ -1031,6 +1066,18 @@ with tab_infrastruktur:
             col_rasio = "rasio_sma"
             col_kualitas = "penyelesaian_pendidikanSMA2024"
 
+        # === Provinsi yang di-highlight per jenjang ===
+        if jenjang == "SD":
+            prov_highlight = ["Jawa Timur", "Papua Tengah"]
+        elif jenjang == "SMP":
+            prov_highlight = ["Bali", "Papua Tengah"]
+        elif jenjang == "SMA":
+            prov_highlight = ["Gorontalo", "Papua Pegunungan"]
+
+        df_plot["warna"] = df_plot["provinsi"].apply(
+            lambda x: "Highlight" if x in prov_highlight else "Lainnya"
+        )
+
         # check kolom
         if col_kualitas not in df_plot.columns:
             st.error(f"Kolom indikator kualitas {col_kualitas} tidak ditemukan di data.")
@@ -1041,7 +1088,11 @@ with tab_infrastruktur:
                 x=col_rasio,
                 y=col_kualitas,
                 size="total_murid",
-                color="provinsi",
+                color="warna",
+                color_discrete_map={
+                    "Highlight": "#1f77b4",  # biru
+                    "Lainnya": "#B0B0B0"     # abu-abu
+                },
                 hover_name="provinsi",
                 title=f"Bubble Chart – Pengaruh Rasio Murid–Guru Terhadap Kualitas Pendidikan ({jenjang})",
                 size_max=60
@@ -1051,7 +1102,8 @@ with tab_infrastruktur:
                 xaxis_title="Rasio Murid–Guru",
                 yaxis_title="Indikator Kualitas Pendidikan",
                 legend_title="Provinsi",
-                template="plotly_white"
+                template="plotly_white",
+                showlegend=False
             )
 
             st.plotly_chart(fig, use_container_width=True)
@@ -1100,6 +1152,11 @@ with tab_infrastruktur:
             f"Putus Sekolah {jenjang}": df_clean[col_putus],
         })
 
+        df_filtered = df_filtered.sort_values(
+            by=f"Putus Sekolah {jenjang}",
+            ascending=False
+        )
+
         # === Melt untuk bentuk long (biar bisa grouped bar) ===
         df_melt = df_filtered.melt(
             id_vars="Provinsi",
@@ -1118,10 +1175,10 @@ with tab_infrastruktur:
         )
 
         fig.update_layout(
-            xaxis_title="Provinsi",
-            yaxis_title="Jumlah",
-            legend_title="Kategori",
-            hovermode="x unified"
+            xaxis=dict(
+                categoryorder="array",
+                categoryarray=df_filtered["Provinsi"]
+            )
         )
 
         st.plotly_chart(fig, use_container_width=True)
