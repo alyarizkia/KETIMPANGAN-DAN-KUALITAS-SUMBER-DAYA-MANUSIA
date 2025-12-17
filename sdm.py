@@ -1090,8 +1090,8 @@ with tab_infrastruktur:
                 size="total_murid",
                 color="warna",
                 color_discrete_map={
-                    "Highlight": "#1f77b4",  # biru
-                    "Lainnya": "#B0B0B0"     # abu-abu
+                    "Highlight": "#005C9E",  # biru
+                    "Lainnya": "#7EB5E1"     # biru muda
                 },
                 hover_name="provinsi",
                 title=f"Bubble Chart – Pengaruh Rasio Murid–Guru Terhadap Kualitas Pendidikan ({jenjang})",
